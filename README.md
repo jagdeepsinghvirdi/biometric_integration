@@ -2,7 +2,7 @@
 
 This Frappe app integrates popular biometric devices like EBKN, Suprema, and ZKTeco with Frappe HRMS, enabling real-time or scheduled synchronization of attendance logs. It also allows creating and updating device users directly from the ERP.
 
-**⚠ Warning: This is an under-development project and is not ready for production use.**
+**⚠ Warning: This is an under-development project and is not ready for production use..**
 
 ## Features
 - **Real-time Attendance Sync**: Process logs as soon as they are sent by devices.
