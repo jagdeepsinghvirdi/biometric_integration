@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-12-09 22:26:43.049009",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "force_close_after",
+  "column_break_yjgs"
+ ],
+ "fields": [
+  {
+   "default": "30",
+   "description": "Sometimes a command fails to execute in all devices, after how many days you want to close the task and no longer try more.",
+   "fieldname": "force_close_after",
+   "fieldtype": "Int",
+   "label": "Force Close Incomplete Commands After (Days)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_yjgs",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-12-09 22:31:45.878887",
+ "modified_by": "Administrator",
+ "module": "Biometric Integration",
+ "name": "Biometric Integration Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
