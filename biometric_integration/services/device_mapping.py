@@ -1,0 +1,118 @@
+import frappe
+import json
+import os
+import logging
+
+def get_biometric_assets_dir():
+    """
+    Get the path to the global biometric_assets directory located in:
+    frappe-bench/sites/assets/biometric_assets
+    """
+    bench_path = frappe.utils.get_bench_path()
+    assets_dir = os.path.join(bench_path, "sites", "assets", "biometric_assets")
+    os.makedirs(assets_dir, exist_ok=True)
+    return assets_dir
+
+def get_device_site_map_path():
+    """
+    Get the path to the device-site mapping JSON file (device_site.json) in the biometric_assets directory.
+    """
+    assets_dir = get_biometric_assets_dir()
+    file_path = os.path.join(assets_dir, "device_site.json")
+    logging.debug(f"Device site map path resolved to: {file_path}")
+    return file_path
+
+def load_device_site_map():
+    """
+    Load the device-site map from the device_site.json file.
+
+    Returns:
+        dict: The device-site mapping.
+    """
+    file_path = get_device_site_map_path()
+    logging.debug(f"Loading device site map from: {file_path}")
+
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                device_site_map = json.load(f)
+                logging.debug(f"Loaded device site map: {device_site_map}")
+                return device_site_map
+        except Exception as e:
+            logging.error(f"Error loading device site map: {str(e)}")
+            return {}
+    else:
+        logging.error(f"Device site map file does not exist at: {file_path}. Returning empty map.")
+        return {}
+
+def save_device_site_map(device_site_map):
+    """
+    Save the device-site map to the device_site.json file.
+
+    Args:
+        device_site_map (dict): The device-site mapping to save.
+    """
+    file_path = get_device_site_map_path()
+    logging.debug(f"Saving device site map to: {file_path}")
+    try:
+        with open(file_path, "w") as f:
+            json.dump(device_site_map, f, indent=4)
+            logging.debug("Device site map saved successfully.")
+    except Exception as e:
+        logging.error(f"Error saving device site map: {str(e)}")
+
+def get_site_for_device(device_id):
+    """
+    Fetch the site name for a given device ID using the JSON file.
+
+    Args:
+        device_id (str): The ID of the biometric device.
+
+    Returns:
+        str: The name of the site associated with the device ID, or None if not found.
+    """
+    try:
+        logging.debug(f"Fetching site for device ID: {device_id}")
+        device_site_map = load_device_site_map()
+        site_name = device_site_map.get(device_id)
+
+        if not site_name:
+            logging.error(f"Device ID {device_id} is not mapped to any site.")
+            return None
+
+        logging.debug(f"Resolved site name for device ID {device_id}: {site_name}")
+        return site_name
+    except Exception as e:
+        logging.error(f"Error fetching site for device ID {device_id}: {str(e)}")
+        return None
+
+def validate_and_update_device_site_map(doc, event=None):
+    """
+    Validate device ID uniqueness across sites and update or maintain the device-site mapping.
+
+    This function should be called from hooks (on_update and on_trash) in the Biometric Device DocType.
+    It ensures that a device ID is unique across sites and updates or removes it from the global mapping.
+
+    Args:
+        doc (Document): The Biometric Device document.
+        event (str): The event type (on_update, on_trash).
+    """
+    try:
+        logging.debug(f"Validating device ID {doc.name} for event {event}")
+        device_site_map = load_device_site_map()
+
+        if event == "on_update":
+            existing_site = device_site_map.get(doc.name)
+            if existing_site and existing_site != frappe.local.site:
+                frappe.throw(f"Device ID {doc.name} is already registered in site {existing_site}.")
+            device_site_map[doc.name] = frappe.local.site
+
+        elif event == "on_trash":
+            if doc.name in device_site_map:
+                device_site_map.pop(doc.name, None)
+
+        save_device_site_map(device_site_map)
+
+    except Exception as e:
+        logging.error(f"Error validating/updating device-site map: {str(e)}")
+        raise

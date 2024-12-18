@@ -89,7 +89,7 @@ app_license = "mit"
 # ------------
 
 # before_uninstall = "biometric_integration.uninstall.before_uninstall"
-# after_uninstall = "biometric_integration.uninstall.after_uninstall"
+after_uninstall = "biometric_integration.utils.uninstall.cleanup"
 
 # Integration Setup
 # ------------------
@@ -242,3 +242,9 @@ app_license = "mit"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+doc_events = {
+    "Biometric Device": {
+        "on_update": "biometric_integration.services.device_mapping.validate_and_update_device_site_map",
+        "on_trash": "biometric_integration.services.device_mapping.validate_and_update_device_site_map",
+    }
+}
