@@ -4,6 +4,7 @@ import frappe
 from datetime import datetime
 from frappe.model.document import Document
 from biometric_integration.biometric_integration.doctype.biometric_integration_settings.biometric_integration_settings import get_erp_employee_id
+from biometric_integration.utils.site_session import init_site, destroy_site
 
 def create_employee_checkin(employee_field_value, timestamp, device_id=None, log_type=None):
     """
@@ -19,6 +20,7 @@ def create_employee_checkin(employee_field_value, timestamp, device_id=None, log
         bool: True if the check-in was successfully created, False otherwise.
     """
     try:
+        init_site(device_id=device_id)
         # Fetch settings with caching
         settings = frappe.get_cached_doc("Biometric Integration Settings")
 
@@ -42,7 +44,7 @@ def create_employee_checkin(employee_field_value, timestamp, device_id=None, log
         # Insert the document into the database
         checkin.insert()
         frappe.db.commit()
-
+        destroy_site()
         logging.info(f"Check-in successfully created for Employee {employee_id} at {timestamp}")
         return True
 

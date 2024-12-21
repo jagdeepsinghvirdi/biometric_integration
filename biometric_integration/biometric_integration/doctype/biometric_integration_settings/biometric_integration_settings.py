@@ -4,6 +4,7 @@
 import re
 import frappe
 import random
+from frappe.model.document import Document
 
 class BiometricIntegrationSettings(Document):
     def validate(self):

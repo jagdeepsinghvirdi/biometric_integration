@@ -4,9 +4,7 @@ import socket
 import os
 from datetime import datetime
 import frappe
-
 from biometric_integration.services.ebkn_processor import handle_ebkn
-from biometric_integration.utils.site_session import init_site_for_device, destroy_site
 
 # Determine dynamic paths
 bench_path = frappe.utils.get_bench_path()
@@ -44,19 +42,8 @@ class BiometricRequestHandler(BaseHTTPRequestHandler):
                     # Missing device id: respond 400
                     self.simple_response(400)
                     return
-
-                # Try to init site
-                try:
-                    init_site_for_device(dev_id)
-                except Exception:
-                    # Any issue with site init: respond 400
-                    self.simple_response(400)
-                    return
-
-                try:
-                    self.pass_to_handler(handle_ebkn)
-                finally:
-                    destroy_site()
+                    
+                self.pass_to_handler(handle_ebkn)
 
             else:
                 # Unsupported path

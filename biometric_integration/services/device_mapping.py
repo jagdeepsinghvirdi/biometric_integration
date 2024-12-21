@@ -63,25 +63,29 @@ def save_device_site_map(device_site_map):
 
 def get_site_for_device(device_id):
     """
-    Fetch the site name for a given device ID using the JSON file.
+    Fetch the site name and has_pending_command for a given device ID using the JSON file.
 
     Args:
         device_id (str): The ID of the biometric device.
 
     Returns:
-        str: The name of the site associated with the device ID, or None if not found.
+        dict: Contains 'site_name' and 'has_pending_command' or None if not found.
     """
     try:
         logging.debug(f"Fetching site for device ID: {device_id}")
         device_site_map = load_device_site_map()
-        site_name = device_site_map.get(device_id)
+        device_info = device_site_map.get(device_id)
 
-        if not site_name:
+        if not device_info:
             logging.error(f"Device ID {device_id} is not mapped to any site.")
             return None
 
-        logging.debug(f"Resolved site name for device ID {device_id}: {site_name}")
-        return site_name
+        logging.debug(f"Resolved site info for device ID {device_id}: {device_info}")
+        return {
+            "site_name": device_info.get("site_name"),
+            "disabled" : device_info.get("disabled", 0),
+            "has_pending_command": device_info.get("has_pending_command", 0)
+        }
     except Exception as e:
         logging.error(f"Error fetching site for device ID {device_id}: {str(e)}")
         return None
@@ -102,10 +106,11 @@ def validate_and_update_device_site_map(doc, event=None):
         device_site_map = load_device_site_map()
 
         if event == "on_update":
-            existing_site = device_site_map.get(doc.name)
-            if existing_site and existing_site != frappe.local.site:
-                frappe.throw(f"Device ID {doc.name} is already registered in site {existing_site}.")
-            device_site_map[doc.name] = frappe.local.site
+            device_site_map[doc.name] = {
+                "site_name": frappe.local.site,
+                "disabled": doc.disabled or 0,
+                "has_pending_command": doc.has_pending_command or 0
+            }
 
         elif event == "on_trash":
             if doc.name in device_site_map:

@@ -1,4 +1,6 @@
 from biometric_integration.services.create_checkin import create_employee_checkin
+from biometric_integration.utils.site_session import init_site, destroy_site
+from biometric_integration.services.device_mapping import get_site_for_device
 from datetime import datetime
 import logging
 import json
@@ -180,9 +182,9 @@ def clear_data(dev_id, request_code):
         os.remove(file_path)
     clear_sequence(dev_id, request_code)
 
-def respond_after_block():
+def reply_response_code(response_code="OK"):
     response_headers = {
-        "response_code": "OK"
+        "response_code": response_code
     }
     # Body empty, return 200 with headers
     return "", 200, response_headers
@@ -195,7 +197,7 @@ def handle_ebkn(request, raw_data, headers):
 
         if not request_code or not dev_id:
             logging.error("Missing request_code or dev_id.")
-            return '{"error": "Missing request_code or dev_id"}', 400, {}
+            return reply_response_code("ERROR")
 
         logging.info(f"Request Code: {request_code}, Device ID: {dev_id}")
 
@@ -213,7 +215,7 @@ def handle_ebkn(request, raw_data, headers):
             start_new_sequence(dev_id, request_code)
             store_block(dev_id, request_code, raw_data)
             set_last_block_no(dev_id, request_code, 1)
-            return respond_after_block()
+            return reply_response_code()
 
         elif blk_no > 1:
             # Continuation block
@@ -227,7 +229,7 @@ def handle_ebkn(request, raw_data, headers):
 
             store_block(dev_id, request_code, raw_data)
             set_last_block_no(dev_id, request_code, blk_no)
-            return respond_after_block()
+            return reply_response_code()
 
         elif blk_no == 0:
             # Final block or single-block scenario
@@ -237,14 +239,14 @@ def handle_ebkn(request, raw_data, headers):
             else:
                 if last_blk_no < 1:
                     logging.error("Final block received without initial blocks.")
-                    return '{"error": "No initial block received"}', 400, {}
+                    return reply_response_code("ERROR")
 
                 store_block(dev_id, request_code, raw_data)
                 set_last_block_no(dev_id, request_code, 0)
                 full_data = read_full_data(dev_id, request_code)
                 if not full_data:
                     logging.error("Could not read full data after final block.")
-                    return '{"error": "Data reading error"}', 500, {}
+                    return reply_response_code("ERROR")
 
             # Parse full data
             try:
@@ -253,50 +255,51 @@ def handle_ebkn(request, raw_data, headers):
                 msg = str(ve)
                 logging.error(f"Parsing error: {msg}")
                 clear_data(dev_id, request_code)
-                return '{"error": "Failed to parse data"}', 400, {}
+                return reply_response_code("ERROR")
 
             # Success, clear partial data
             clear_data(dev_id, request_code)
 
             parsed_data["device_id"] = dev_id
 
-            # Route to brand-specific handlers
+            # Route to request-specific handlers
             if request_code == "realtime_glog":
                 return handle_realtime_glog(parsed_data)
             elif request_code == "realtime_enroll_data":
-                return handle_realtime_enroll_data(parsed_data)
+                return handle_realtime_enroll_data(full_data, parsed_data, headers)
             elif request_code == "receive_cmd":
-                return handle_receive_cmd(parsed_data)
+                return handle_receive_cmd(parsed_data, headers)
             elif request_code == "send_cmd_result":
                 return handle_send_cmd_result(parsed_data)
             else:
                 logging.warning(f"Unsupported request_code: {request_code}")
-                return '{"error": "Unsupported request_code"}', 400, {}
+                return reply_response_code("ERROR")
 
         else:
             # Invalid blk_no
             logging.error(f"Invalid blk_no: {blk_no}")
-            return '{"error": "Invalid block number"}', 400, {}
+            return reply_response_code("ERROR")
 
     except Exception as e:
         logging.error(f"Error in handle_ebkn: {str(e)}", exc_info=True)
-        return '{"error": "Internal server error"}', 500, {}
+        return reply_response_code("ERROR")
 
-def handle_receive_cmd(data):
+def handle_receive_cmd(data, headers):
     try:
-        trans_id = data.get("trans_id", "0")
-        cmd_code = ""
+        device_info = get_site_for_device(headers.get("dev_id"))
+        if (not device_info.get("has_pending_command", 0)):
+            logging.info("No pending command to process.")
+            return reply_response_code("OK")
+        
+        init_site(device_info.get("site_name"))
+        # Process the command data
+        destroy_site()
 
-        response_headers = {
-            "response_code": "OK",
-            "trans_id": trans_id,
-            "cmd_code": cmd_code,
-        }
-        return "", 200, response_headers
+        return reply_response_code("OK")
 
     except Exception as e:
         logging.error(f"Error in handle_receive_cmd: {str(e)}", exc_info=True)
-        return '{"error": "Internal server error"}', 500, {}
+        return reply_response_code("ERROR")
 
 def handle_send_cmd_result(data):
     try:
@@ -304,11 +307,11 @@ def handle_send_cmd_result(data):
         logging.info(f"Command Result: {cmd_result}")
 
         # Just an example
-        return '{"response_code": "OK"}', 200, {}
+        return reply_response_code("OK")
 
     except Exception as e:
         logging.error(f"Error in handle_send_cmd_result: {str(e)}", exc_info=True)
-        return '{"error": "Internal server error"}', 500, {}
+        return reply_response_code("ERROR")
 
 def handle_realtime_glog(data):
     try:
@@ -319,13 +322,13 @@ def handle_realtime_glog(data):
 
         if not user_id or not io_time:
             logging.error("Missing required fields in realtime_glog")
-            return '{"error": "Missing required fields"}', 400, {"response_code": "ERROR"}
+            return reply_response_code("ERROR")
 
         try:
             employee_field_value = int(user_id)
         except ValueError:
             logging.error(f"Invalid user_id format: {user_id}")
-            return '{"error": "Invalid user_id format"}', 400, {"response_code": "ERROR"}
+            return reply_response_code("ERROR")
 
         timestamp = datetime.strptime(io_time, "%Y%m%d%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
         log_type = "IN" if io_mode == 1 else "OUT"
@@ -339,28 +342,63 @@ def handle_realtime_glog(data):
 
         if is_success:
             logging.info(f"Realtime log processed for user {employee_field_value} at {timestamp}")
-            return '{"response_code": "OK"}', 200, {"response_code": "OK"}
+            return reply_response_code("OK")
         else:
             logging.error(f"Failed to process realtime log for user {employee_field_value}")
-            return '{"response_code": "ERROR"}', 500, {"response_code": "ERROR"}
+            return reply_response_code("ERROR")
 
     except Exception as e:
         logging.error(f"Error handling realtime_glog: {str(e)}", exc_info=True)
-        return '{"error": "Internal server error"}', 500, {"response_code": "ERROR"}
+        return reply_response_code("ERROR")
 
-def handle_realtime_enroll_data(data):
+
+def handle_realtime_enroll_data(raw_data, parsed_data, headers):
+    """
+    Handle real-time transmission of enroll data by saving the raw binary data and parsed JSON data.
+
+    Args:
+        raw_data (bytes): The full raw binary data received from the terminal.
+        parsed_data (dict): The parsed JSON data from the enroll data.
+        headers (dict): The HTTP headers containing metadata like request_code and dev_id.
+
+    Returns:
+        tuple: Response body, HTTP status code, and headers.
+    """
     try:
-        trans_id = data.get("trans_id", "0")
-        cmd_code = ""
+        user_id = parsed_data.get("user_id")
 
-        response_headers = {
-            "response_code": "OK",
-            "trans_id": trans_id,
-            "cmd_code": cmd_code,
-        }
+        if not user_id:
+            logging.error("User ID missing in real-time enroll data.")
+            return reply_response_code("ERROR")
+        else :
+            user_id = int(user_id)
+        init_site(device_id=headers.get("dev_id"))
+        # Upload raw binary enroll data as a file
+        bin_file_name = f"enroll_data_{user_id}.bin"
+        bin_file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_name": bin_file_name,
+            "is_private": 1,
+            "content": raw_data,
+            "attached_to_doctype": "Biometric Device User",
+            "attached_to_name": user_id
+        })
+        bin_file_doc.insert()
 
-        return "", 200, response_headers
+        logging.info(f"Raw enroll data uploaded as file {bin_file_name}")
+
+        # Attach the file URLs to the Biometric Device User document
+        doc = frappe.get_doc("Biometric Device User", user_id)
+        doc.ebkn_enroll_data = bin_file_doc.file_url
+        doc.ebkn_enroll_data_json = frappe.as_json(parsed_data)
+        doc.save()
+        frappe.db.commit()
+
+        destroy_site()
+        logging.info(f"Enroll data for User ID {user_id} saved successfully.")
+
+        return reply_response_code("OK")
 
     except Exception as e:
-        logging.error(f"Error in handle_realtime_enroll_data: {str(e)}", exc_info=True)
-        return '{"error": "Internal server error"}', 500, {}
+        logging.error(f"Error handling real-time enroll data: {str(e)}", exc_info=True)
+        return reply_response_code("ERROR")

@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "force_close_after",
+  "maximum_no_of_attempts_for_commands",
   "column_break_yjgs",
   "employee_id_mapping_method",
   "device_id_field",
@@ -55,12 +56,18 @@
    "fieldtype": "Small Text",
    "label": "Example Cleaned IDs",
    "read_only": 1
+  },
+  {
+   "default": "3",
+   "fieldname": "maximum_no_of_attempts_for_commands",
+   "fieldtype": "Int",
+   "label": "Maximum No of Attempts for Commands"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-12-18 22:59:28.644705",
+ "modified": "2024-12-20 21:54:50.615982",
  "modified_by": "Administrator",
  "module": "Biometric Integration",
  "name": "Biometric Integration Settings",

@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "field:serial",
  "creation": "2024-11-22 20:55:53.171370",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -13,6 +14,7 @@
   "device_port",
   "column_break_iulc",
   "disabled",
+  "has_pending_command",
   "push_protocol_configured",
   "disable_syncing_employees",
   "maximum_sync_attempt",
@@ -28,7 +30,8 @@
    "fieldname": "serial",
    "fieldtype": "Data",
    "label": "Serial",
-   "reqd": 1
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "device_name",
@@ -128,6 +131,13 @@
    "label": "Maximum Sync Attempt",
    "non_negative": 1,
    "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "has_pending_command",
+   "fieldtype": "Check",
+   "label": "Has Pending Command",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -137,10 +147,11 @@
    "link_fieldname": "biometric_device"
   }
  ],
- "modified": "2024-12-09 21:57:49.065974",
+ "modified": "2024-12-20 23:04:36.413834",
  "modified_by": "Administrator",
  "module": "Biometric Integration",
  "name": "Biometric Device",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -156,7 +167,9 @@
    "write": 1
   }
  ],
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "device_name"
 }

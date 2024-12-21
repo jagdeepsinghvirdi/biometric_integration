@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class BiometricDeviceCommandDetail(Document):
+class BiometricDeviceUser(Document):
 	pass

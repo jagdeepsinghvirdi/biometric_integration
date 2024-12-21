@@ -1,52 +1,30 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "autoname": "format:{YY}{####}",
  "creation": "2024-12-09 21:05:04.340390",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "biometric_device",
+  "biometric_device_user",
   "employee",
-  "employee_name",
-  "department",
-  "designation",
+  "brand",
+  "no_of_attempts",
   "column_break_yfdy",
   "command_type",
   "status",
   "initiated_on",
   "closed_on",
-  "section_break_ivkj",
-  "devices"
+  "response_section",
+  "device_response"
  ],
  "fields": [
   {
+   "fetch_from": "biometric_device_user.employee",
    "fieldname": "employee",
    "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
    "label": "Employee",
-   "options": "Employee",
-   "reqd": 1,
-   "set_only_once": 1
-  },
-  {
-   "fetch_from": "employee.employee_name",
-   "fieldname": "employee_name",
-   "fieldtype": "Data",
-   "label": "Employee Name"
-  },
-  {
-   "fetch_from": "employee.department",
-   "fieldname": "department",
-   "fieldtype": "Link",
-   "label": "Department",
-   "options": "Department"
-  },
-  {
-   "fetch_from": "employee.designation",
-   "fieldname": "designation",
-   "fieldtype": "Link",
-   "label": "Designation",
-   "options": "Designation"
+   "options": "Employee"
   },
   {
    "fieldname": "column_break_yfdy",
@@ -59,7 +37,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Command Type",
-   "options": "\nCreate User\nUpdate User Status\nUpdate User Data\nCreate Fingerprint",
+   "options": "\nCreate User\nUpdate User Status\nUpdate User Data\nEnroll User",
    "reqd": 1
   },
   {
@@ -73,10 +51,10 @@
    "options": "Pending\nProcessing\nClosed"
   },
   {
+   "default": "Now",
    "fieldname": "initiated_on",
    "fieldtype": "Datetime",
-   "label": "Initiated On",
-   "options": "Now"
+   "label": "Initiated On"
   },
   {
    "fieldname": "closed_on",
@@ -84,23 +62,49 @@
    "label": "Closed On"
   },
   {
-   "fieldname": "section_break_ivkj",
-   "fieldtype": "Section Break"
+   "fieldname": "biometric_device",
+   "fieldtype": "Link",
+   "label": "Biometric Device",
+   "options": "Biometric Device",
+   "search_index": 1
   },
   {
-   "fieldname": "devices",
-   "fieldtype": "Table",
-   "label": "Devices",
-   "options": "Biometric Device Command Detail",
-   "reqd": 1
+   "fieldname": "biometric_device_user",
+   "fieldtype": "Link",
+   "label": "Biometric Device User",
+   "options": "Biometric Device User"
+  },
+  {
+   "fetch_from": "biometric_device.brand",
+   "fieldname": "brand",
+   "fieldtype": "Data",
+   "label": "Brand"
+  },
+  {
+   "fieldname": "no_of_attempts",
+   "fieldtype": "Int",
+   "label": "No of Attempts"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "response_section",
+   "fieldtype": "Section Break",
+   "label": "Response"
+  },
+  {
+   "fieldname": "device_response",
+   "fieldtype": "Code",
+   "label": "Device Response",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-09 21:37:25.650875",
+ "modified": "2024-12-20 22:07:49.051638",
  "modified_by": "Administrator",
  "module": "Biometric Integration",
  "name": "Biometric Device Command",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
