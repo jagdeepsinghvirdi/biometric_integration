@@ -1,6 +1,7 @@
 from biometric_integration.services.create_checkin import create_employee_checkin
 from biometric_integration.utils.site_session import init_site, destroy_site
 from biometric_integration.services.device_mapping import get_site_for_device
+from biometric_integration.services.command_processor import process_device_command, handle_device_response
 from datetime import datetime
 import logging
 import json
@@ -270,7 +271,7 @@ def handle_ebkn(request, raw_data, headers):
             elif request_code == "receive_cmd":
                 return handle_receive_cmd(parsed_data, headers)
             elif request_code == "send_cmd_result":
-                return handle_send_cmd_result(parsed_data)
+                return handle_send_cmd_result(parsed_data, headers)
             else:
                 logging.warning(f"Unsupported request_code: {request_code}")
                 return reply_response_code("ERROR")
@@ -291,9 +292,19 @@ def handle_receive_cmd(data, headers):
             logging.info("No pending command to process.")
             return reply_response_code("OK")
         
-        init_site(device_info.get("site_name"))
-        # Process the command data
+        init_site(site_name=device_info.get("site_name"))
+        command_data = process_device_command(headers.get("dev_id"))
         destroy_site()
+        if command_data:
+            response_headers = {
+                "response_code": "OK",
+                "blk_no": command_data.get("blk_no"),
+                "trans_id" : command_data.get("trans_id"),
+                "cmd_code" : command_data.get("cmd_code")
+                }
+            body = command_data.get("body")
+            
+            return body, 200, response_headers
 
         return reply_response_code("OK")
 
@@ -301,14 +312,33 @@ def handle_receive_cmd(data, headers):
         logging.error(f"Error in handle_receive_cmd: {str(e)}", exc_info=True)
         return reply_response_code("ERROR")
 
-def handle_send_cmd_result(data):
+def handle_send_cmd_result(data, headers):
     try:
-        cmd_result = data.get("cmd_result", "UNKNOWN")
-        logging.info(f"Command Result: {cmd_result}")
-
-        # Just an example
+        logging.info(f"Data from send_cmd_result request: {data}")
+        init_site(device_id=headers.get("dev_id"))
+        response = handle_device_response(
+            device_id=headers.get("dev_id"),
+            trans_id=headers.get("trans_id"),
+            cmd_return_code=headers.get("cmd_return_code")
+        )
+        destroy_site()
+        if response:
+            if response.get("response_code") == "ERROR":
+                return reply_response_code("ERROR")
+            elif response.get("response_code") == "OK":
+                return reply_response_code("OK")
+            elif response.get("cmd_code") :
+                response_headers = {
+                    "response_code": "OK",
+                    "blk_no": command_data.get("blk_no"),
+                    "trans_id" : command_data.get("trans_id"),
+                    "cmd_code" : command_data.get("cmd_code")
+                    }
+                body = command_data.get("body")
+                
+                return body, 200, response_headers
         return reply_response_code("OK")
-
+        
     except Exception as e:
         logging.error(f"Error in handle_send_cmd_result: {str(e)}", exc_info=True)
         return reply_response_code("ERROR")
