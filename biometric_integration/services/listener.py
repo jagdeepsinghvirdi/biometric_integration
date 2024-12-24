@@ -60,9 +60,14 @@ class BiometricRequestHandler(BaseHTTPRequestHandler):
 
             # Call handler
             response_body, status, response_headers = handler(self, raw_data, self.headers)
-            response_body_bytes = response_body.encode('utf-8')
+            
+            # Check if response_body is already bytes
+            if isinstance(response_body, bytes):
+                response_body_bytes = response_body
+            else:
+                response_body_bytes = response_body.encode('utf-8')
 
-            # On successful processing, just send status from handler
+            # Send response
             self.send_response(status)
             for header, value in response_headers.items():
                 self.send_header(header, value)

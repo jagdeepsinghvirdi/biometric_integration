@@ -261,8 +261,6 @@ def handle_ebkn(request, raw_data, headers):
             # Success, clear partial data
             clear_data(dev_id, request_code)
 
-            parsed_data["device_id"] = dev_id
-
             # Route to request-specific handlers
             if request_code == "realtime_glog":
                 return handle_realtime_glog(parsed_data)
@@ -394,6 +392,7 @@ def handle_realtime_enroll_data(raw_data, parsed_data, headers):
     Returns:
         tuple: Response body, HTTP status code, and headers.
     """
+    return reply_response_code("OK")
     try:
         user_id = parsed_data.get("user_id")
 

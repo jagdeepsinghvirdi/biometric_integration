@@ -1,7 +1,6 @@
 import logging
 import frappe
 import base64
-import os
 
 def process_device_command(device_id):
     """
@@ -102,22 +101,14 @@ def prepare_command_data(command_doc):
         device_user = frappe.get_doc("Biometric Device User", command_doc.biometric_device_user)
         file_url = device_user.ebkn_enroll_data
 
-        # Determine the file path
-        if file_url.startswith("/private"):
-            file_url_path = ("private", file_url.lstrip("/private/"))
-        else:
-            file_url_path = ("public", file_url.lstrip("/public/"))
+        # Get file content using the File DocType
+        file_id = frappe.db.get_value("File", {"file_url": file_url}, "name")
+        if not file_id:
+            logging.error("No file found for the given file URL.")
+            raise FileNotFoundError("No file found for the given file URL.")
 
-        # Construct the full path using bench path
-        file_path = os.path.join(frappe.utils.get_bench_path(), "sites", frappe.get_site_path(*file_url_path))
-
-        # Read the binary file content
-        try:
-            with open("/home/zima/frappe-bench/sites/erpc.zimallc.com/public/file/b1c8f84c49/enroll_data_11d674a.bin", "rb") as f:
-                data_bytes = f.read()
-        except FileNotFoundError:
-            logging.error(f"File not found at {file_path}")
-            raise
+        file_doc = frappe.get_doc("File", file_id)
+        data_bytes = file_doc.get_content()
 
         # Split data into chunks
         max_chunk_size = 1024  # Define chunk size limit
@@ -131,12 +122,16 @@ def prepare_command_data(command_doc):
 
         next_chunk = chunks[last_sent]
 
-        # Check if this is the final block
-        is_last_block = (last_sent == len(chunks) - 1)
-        blk_no = 0 if is_last_block else last_sent + 1
+        # Determine block number
+        blk_no = last_sent + 1  # Start block numbers from 1
+        if last_sent == len(chunks) - 1:  # If it's the final block
+            blk_no = 0
+
+        # Log debug information
+        logging.debug(f"Sending to device: trans_id={command_doc.name}, blk_no={blk_no}, chunk_size={len(next_chunk)}")
 
         # Update command document with the last sent block
-        command_doc.last_sent_data_block = blk_no
+        command_doc.last_sent_data_block = last_sent + 1
         command_doc.save()
         frappe.db.commit()
 
@@ -144,7 +139,7 @@ def prepare_command_data(command_doc):
             "trans_id": command_doc.name,
             "cmd_code": "SET_USER_INFO",
             "blk_no": blk_no,
-            "body": base64.b64encode(next_chunk).decode("utf-8")
+            "body": next_chunk
         }
 
     return None
