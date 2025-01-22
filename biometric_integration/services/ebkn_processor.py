@@ -216,9 +216,12 @@ def handle_ebkn(request, raw_data, headers):
             start_new_sequence(dev_id, request_code)
             store_block(dev_id, request_code, raw_data)
             set_last_block_no(dev_id, request_code, 1)
+            logging.info(f"Received First Block, content length: {headers.get('Content-Length')}")
             return reply_response_code()
 
         elif blk_no > 1:
+            logging.error("Skipped Blocks After First Block")
+            return reply_response_code("OK")
             # Continuation block
             if last_blk_no is None:
                 logging.error("Received a continuation block without a start.")
@@ -233,6 +236,8 @@ def handle_ebkn(request, raw_data, headers):
             return reply_response_code()
 
         elif blk_no == 0:
+            #logging.error("Receieved Final Block")
+            #return reply_response_code("OK")
             # Final block or single-block scenario
             if last_blk_no is None:
                 # Single-block scenario
@@ -255,17 +260,15 @@ def handle_ebkn(request, raw_data, headers):
             except ValueError as ve:
                 msg = str(ve)
                 logging.error(f"Parsing error: {msg}")
-                clear_data(dev_id, request_code)
+                #clear_data(dev_id, request_code)
                 return reply_response_code("ERROR")
 
             # Success, clear partial data
-            clear_data(dev_id, request_code)
-
-            parsed_data["device_id"] = dev_id
+            #clear_data(dev_id, request_code)
 
             # Route to request-specific handlers
             if request_code == "realtime_glog":
-                return handle_realtime_glog(parsed_data)
+                return handle_realtime_glog(parsed_data, headers)
             elif request_code == "realtime_enroll_data":
                 return handle_realtime_enroll_data(full_data, parsed_data, headers)
             elif request_code == "receive_cmd":
@@ -298,7 +301,7 @@ def handle_receive_cmd(data, headers):
         if command_data:
             response_headers = {
                 "response_code": "OK",
-                "blk_no": command_data.get("blk_no"),
+                #"blk_no": command_data.get("blk_no") or 0,
                 "trans_id" : command_data.get("trans_id"),
                 "cmd_code" : command_data.get("cmd_code")
                 }
@@ -314,7 +317,7 @@ def handle_receive_cmd(data, headers):
 
 def handle_send_cmd_result(data, headers):
     try:
-        logging.info(f"Data from send_cmd_result request: {data}")
+        logging.info(f"Device sent {headers.get("cmd_return_code")} status for transaction {headers.get("trans_id")}")
         init_site(device_id=headers.get("dev_id"))
         response = handle_device_response(
             device_id=headers.get("dev_id"),
@@ -343,12 +346,12 @@ def handle_send_cmd_result(data, headers):
         logging.error(f"Error in handle_send_cmd_result: {str(e)}", exc_info=True)
         return reply_response_code("ERROR")
 
-def handle_realtime_glog(data):
+def handle_realtime_glog(data, headers):
     try:
         user_id = data.get("user_id")
         io_time = data.get("io_time")
         io_mode = data.get("io_mode")
-        device_id = data.get("device_id")
+        device_id = headers.get("dev_id")
 
         if not user_id or not io_time:
             logging.error("Missing required fields in realtime_glog")
@@ -395,6 +398,7 @@ def handle_realtime_enroll_data(raw_data, parsed_data, headers):
         tuple: Response body, HTTP status code, and headers.
     """
     try:
+        logging.error(f"Content Length is {headers.get('Content-Length')}")
         user_id = parsed_data.get("user_id")
 
         if not user_id:

@@ -1,7 +1,8 @@
 import logging
 import frappe
 import base64
-import os
+import json
+from biometric_integration.biometric_integration.doctype.biometric_integration_settings.biometric_integration_settings import get_device_employee_id
 
 def process_device_command(device_id):
     """
@@ -88,36 +89,37 @@ def update_has_pending_command(device_id, has_pending_command):
         logging.error(f"Error updating has_pending_command for device {device_id}: {str(e)}", exc_info=True)
 
 def prepare_command_data(command_doc):
-    """
-    Prepare the command data to be sent to the device processor in chunks.
 
-    Args:
-        command_doc (Document): The Biometric Device Command document.
-
-    Returns:
-        dict: Prepared command data.
-    """
-    if command_doc.brand == "EBKN" and command_doc.command_type == "Enroll User":
-        # Fetch the binary enroll data attachment
+    try:
         device_user = frappe.get_doc("Biometric Device User", command_doc.biometric_device_user)
-        file_url = device_user.ebkn_enroll_data
+    except frappe.DoesNotExistError:
+        device_user = None
 
-        # Determine the file path
-        if file_url.startswith("/private"):
-            file_url_path = ("private", file_url.lstrip("/private/"))
+    if command_doc.brand == "EBKN" and command_doc.command_type == "Create User":
+        employee = frappe.get_doc("Employee", command_doc.employee)
+        if employee:
+            return {
+                "trans_id": "5434",
+                "cmd_code": "DELETE_USER",
+                # Escaped JSON
+                "body": json.dumps(json.dumps({"user_id": "00000001"}))
+            }
         else:
-            file_url_path = ("public", file_url.lstrip("/public/"))
+            return None
+    
+    if command_doc.brand == "EBKN" and command_doc.command_type == "":
 
-        # Construct the full path using bench path
-        file_path = os.path.join(frappe.utils.get_bench_path(), "sites", frappe.get_site_path(*file_url_path))
+        # Fetch the binary enroll data attachment
+        file_url = "/file/d9430b1af2/enroll_data_5.bin"#device_user.ebkn_enroll_data
 
-        # Read the binary file content
-        try:
-            with open("/home/zima/frappe-bench/sites/erpc.zimallc.com/public/file/b1c8f84c49/enroll_data_11d674a.bin", "rb") as f:
-                data_bytes = f.read()
-        except FileNotFoundError:
-            logging.error(f"File not found at {file_path}")
-            raise
+        # Get file content using the File DocType
+        file_id = frappe.db.get_value("File", {"file_url": file_url}, "name")
+        if not file_id:
+            logging.error("No file found for the given file URL.")
+            raise FileNotFoundError("No file found for the given file URL.")
+
+        file_doc = frappe.get_doc("File", file_id)
+        data_bytes = file_doc.get_content()
 
         # Split data into chunks
         max_chunk_size = 1024  # Define chunk size limit
@@ -131,20 +133,23 @@ def prepare_command_data(command_doc):
 
         next_chunk = chunks[last_sent]
 
-        # Check if this is the final block
-        is_last_block = (last_sent == len(chunks) - 1)
-        blk_no = 0 if is_last_block else last_sent + 1
+        # Determine block number
+        blk_no = last_sent + 1  # Start block numbers from 1
+        if last_sent == len(chunks) - 1:  # If it's the final block
+            blk_no = 0
+
+        # Log debug information
+        logging.debug(f"Sending to device: trans_id={command_doc.name}, blk_no={blk_no}, chunk_size={len(next_chunk)}")
 
         # Update command document with the last sent block
-        command_doc.last_sent_data_block = blk_no
-        command_doc.save()
-        frappe.db.commit()
+        command_doc.last_sent_data_block = last_sent + 1
+        #command_doc.save()
+        #frappe.db.commit()
 
         return {
             "trans_id": command_doc.name,
             "cmd_code": "SET_USER_INFO",
             "blk_no": blk_no,
-            "body": base64.b64encode(next_chunk).decode("utf-8")
+            "body": next_chunk
         }
-
     return None

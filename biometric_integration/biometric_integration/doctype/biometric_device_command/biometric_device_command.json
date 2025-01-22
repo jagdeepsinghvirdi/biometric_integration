@@ -1,6 +1,7 @@
 {
  "actions": [],
- "autoname": "autoincrement",
+ "allow_rename": 1,
+ "autoname": "format:{#}",
  "creation": "2024-12-09 21:05:04.340390",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -102,17 +103,16 @@
    "depends_on": "eval:doc.brand == \"EBKN\"",
    "fieldname": "last_sent_data_block",
    "fieldtype": "Int",
-   "label": "Last Sent Data Block",
-   "read_only": 1
+   "label": "Last Sent Data Block"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-22 21:41:25.031116",
+ "modified": "2024-12-23 21:15:00.256502",
  "modified_by": "Administrator",
  "module": "Biometric Integration",
  "name": "Biometric Device Command",
- "naming_rule": "Autoincrement",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
