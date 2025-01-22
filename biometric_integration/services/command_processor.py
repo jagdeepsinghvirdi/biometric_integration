@@ -1,6 +1,8 @@
 import logging
 import frappe
 import base64
+import json
+from biometric_integration.biometric_integration.doctype.biometric_integration_settings.biometric_integration_settings import get_device_employee_id
 
 def process_device_command(device_id):
     """
@@ -87,19 +89,28 @@ def update_has_pending_command(device_id, has_pending_command):
         logging.error(f"Error updating has_pending_command for device {device_id}: {str(e)}", exc_info=True)
 
 def prepare_command_data(command_doc):
-    """
-    Prepare the command data to be sent to the device processor in chunks.
 
-    Args:
-        command_doc (Document): The Biometric Device Command document.
-
-    Returns:
-        dict: Prepared command data.
-    """
-    if command_doc.brand == "EBKN" and command_doc.command_type == "Enroll User":
-        # Fetch the binary enroll data attachment
+    try:
         device_user = frappe.get_doc("Biometric Device User", command_doc.biometric_device_user)
-        file_url = device_user.ebkn_enroll_data
+    except frappe.DoesNotExistError:
+        device_user = None
+
+    if command_doc.brand == "EBKN" and command_doc.command_type == "Create User":
+        employee = frappe.get_doc("Employee", command_doc.employee)
+        if employee:
+            return {
+                "trans_id": "5434",
+                "cmd_code": "DELETE_USER",
+                # Escaped JSON
+                "body": json.dumps(json.dumps({"user_id": "00000001"}))
+            }
+        else:
+            return None
+    
+    if command_doc.brand == "EBKN" and command_doc.command_type == "":
+
+        # Fetch the binary enroll data attachment
+        file_url = "/file/d9430b1af2/enroll_data_5.bin"#device_user.ebkn_enroll_data
 
         # Get file content using the File DocType
         file_id = frappe.db.get_value("File", {"file_url": file_url}, "name")
@@ -132,8 +143,8 @@ def prepare_command_data(command_doc):
 
         # Update command document with the last sent block
         command_doc.last_sent_data_block = last_sent + 1
-        command_doc.save()
-        frappe.db.commit()
+        #command_doc.save()
+        #frappe.db.commit()
 
         return {
             "trans_id": command_doc.name,
@@ -141,5 +152,4 @@ def prepare_command_data(command_doc):
             "blk_no": blk_no,
             "body": next_chunk
         }
-
     return None

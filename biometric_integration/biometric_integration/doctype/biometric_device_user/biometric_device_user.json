@@ -64,13 +64,13 @@
   },
   {
    "fieldname": "ebkn_enroll_data_json",
-   "fieldtype": "Attach",
+   "fieldtype": "JSON",
    "label": "EBKN Enroll Data JSON"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-19 01:13:22.422525",
+ "modified": "2024-12-26 22:56:12.402807",
  "modified_by": "Administrator",
  "module": "Biometric Integration",
  "name": "Biometric Device User",

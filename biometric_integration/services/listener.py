@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import frappe
 from biometric_integration.services.ebkn_processor import handle_ebkn
+import shlex
 
 # Determine dynamic paths
 bench_path = frappe.utils.get_bench_path()
@@ -60,7 +61,7 @@ class BiometricRequestHandler(BaseHTTPRequestHandler):
 
             # Call handler
             response_body, status, response_headers = handler(self, raw_data, self.headers)
-            
+
             # Check if response_body is already bytes
             if isinstance(response_body, bytes):
                 response_body_bytes = response_body
@@ -72,8 +73,24 @@ class BiometricRequestHandler(BaseHTTPRequestHandler):
             for header, value in response_headers.items():
                 self.send_header(header, value)
             self.send_header("Content-Length", str(len(response_body_bytes)))
+            logging.info(f"Sending response content-length: {len(response_body_bytes)}")
+            self.send_header("Content-Type", "application/octet-stream")
             self.end_headers()
 
+            # Save raw data if needed
+            try:
+                if True:  # Set to False to disable saving raw data
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"raw_data_{timestamp}.bin"  # More descriptive filename
+                    save_path = os.path.join("/home/zima/frappe-bench/sites/assets/biometric_assets", filename)
+
+                    with open(save_path, "wb") as f:  # Open in binary write mode
+                        f.write(raw_data)  # Write raw binary data directly
+
+            except Exception as file_error:
+                logging.error(f"Error saving raw data: {str(file_error)}", exc_info=True)
+
+            # Write the response back to the client
             self.wfile.write(response_body_bytes)
             self.wfile.flush()
 
