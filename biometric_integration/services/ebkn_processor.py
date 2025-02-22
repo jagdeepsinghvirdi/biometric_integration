@@ -317,7 +317,7 @@ def handle_receive_cmd(data, headers):
 
 def handle_send_cmd_result(data, headers):
     try:
-        logging.info(f"Device sent {headers.get("cmd_return_code")} status for transaction {headers.get("trans_id")}")
+        logging.info(f"Device sent {headers.get('cmd_return_code')} status for transaction {headers.get('trans_id')}")
         init_site(device_id=headers.get("dev_id"))
         response = handle_device_response(
             device_id=headers.get("dev_id"),
